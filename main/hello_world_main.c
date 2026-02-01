@@ -4,23 +4,90 @@
  * SPDX-License-Identifier: CC0-1.0
  */
 
-#include <stdio.h>              // æ ‡å‡†è¾“å…¥è¾“å‡º
-#include <inttypes.h>           // æä¾›æ•´æ•°æ ¼å¼åŒ–å®
-#include "sdkconfig.h"          // è‡ªåŠ¨ç”Ÿæˆçš„é…ç½®å®
-#include "freertos/FreeRTOS.h"  // FreeRTOS æ ¸å¿ƒå®šä¹‰
-#include "freertos/task.h"      // FreeRTOS ä»»åŠ¡ API
-#include "esp_chip_info.h"      // èŠ¯ç‰‡ä¿¡æ¯æŸ¥è¯¢
-#include "esp_flash.h"          // Flash ç›¸å…³ API
-#include "esp_system.h"         // ç³»ç»Ÿçº§åŠŸèƒ½ï¼ˆé‡å¯ã€å†…å­˜ï¼‰
+#include <stdio.h>              // ±ê×¼ÊäÈëÊä³ö
+#include <string.h>             // ×Ö·û´®¹¤¾ß£¨¼ÆËã³¤¶È£©
+#include <inttypes.h>           // ÕûÊı¸ñÊ½»¯ºê
+#include "sdkconfig.h"          // ×Ô¶¯Éú³ÉµÄÅäÖÃºê
+#include "freertos/FreeRTOS.h"  // FreeRTOS ºËĞÄ¶¨Òå
+#include "freertos/task.h"      // FreeRTOS ÈÎÎñ API
+#include "esp_chip_info.h"      // Ğ¾Æ¬ĞÅÏ¢²éÑ¯
+#include "esp_flash.h"          // Flash Ïà¹Ø API
+#include "esp_system.h"         // ÏµÍ³¼¶¹¦ÄÜ£¨ÖØÆô¡¢ÄÚ´æ£©
+#include "esp_event.h"          // ÊÂ¼şÑ­»·
+#include "esp_netif.h"          // ÍøÂç½Ó¿Ú³õÊ¼»¯
+#include "esp_wifi.h"           // Wi-Fi Çı¶¯
+#include "nvs_flash.h"          // NVS ´æ´¢³õÊ¼»¯
+#include "esp_log.h"            // ÈÕÖ¾Êä³ö
+#include "esp_err.h"            // ´íÎóÂë¶¨Òå
+
+#define WIFI_SSID "ESP32-S3"       // SoftAP SSID
+#define WIFI_PASS "2452460803"     // SoftAP ÃÜÂë
+#define WIFI_CHANNEL 1              // SoftAP ĞÅµÀ
+#define WIFI_MAX_CONN 4             // ÔÊĞíµÄ×î´ó²¢·¢ STA Êı
+
+static const char *TAG = "app";
+
+// ³õÊ¼»¯ NVS£¬Wi-Fi Çı¶¯ÒÀÀµÓÚ´Ë
+static void init_nvs(void)
+{
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+}
+
+// ÅäÖÃÎª SoftAP Ä£Ê½£¬¿ªÆô Wi-Fi
+static void wifi_init_softap(void)
+{
+    ESP_ERROR_CHECK(esp_netif_init());                    // ³õÊ¼»¯ TCP/IP Õ»
+    ESP_ERROR_CHECK(esp_event_loop_create_default());     // ´´½¨Ä¬ÈÏÊÂ¼şÑ­»·
+    esp_netif_create_default_wifi_ap();                   // ´´½¨Ä¬ÈÏ AP ½Ó¿Ú
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    wifi_config_t wifi_config = {
+        .ap = {
+            .ssid = WIFI_SSID,
+            .ssid_len = strlen(WIFI_SSID),
+            .channel = WIFI_CHANNEL,
+            .password = WIFI_PASS,
+            .max_connection = WIFI_MAX_CONN,
+            .authmode = WIFI_AUTH_WPA_WPA2_PSK,
+            .pmf_cfg = {
+                .required = false,
+            },
+        },
+    };
+
+    // ÃÜÂë³¤¶ÈĞ¡ÓÚ 8 Ê±ÇĞ»»Îª¿ª·ÅÍøÂç£¨´Ë´¦ÃÜÂëÂú×ãÒªÇó£¬½ö×÷Îª±£»¤£©
+    if (strlen(WIFI_PASS) < 8)
+    {
+        wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(TAG, "SoftAP started, SSID:%s password:%s channel:%d", WIFI_SSID, WIFI_PASS, WIFI_CHANNEL);
+}
 
 void app_main(void)
 {
-    printf("Hello world!\n");  // å¯åŠ¨åå…ˆæ‰“å°æ¬¢è¿è¯­
+    esp_log_level_set(TAG, ESP_LOG_INFO); // ÉèÖÃÄ¬ÈÏÈÕÖ¾¼¶±ğ
+    printf("Hello world!\n");             // Æô¶¯ºóÏÈ´òÓ¡»¶Ó­Óï
 
-    /* æ‰“å°èŠ¯ç‰‡ä¿¡æ¯ */
-    esp_chip_info_t chip_info;  // ç”¨äºä¿å­˜èŠ¯ç‰‡ç‰¹æ€§
-    uint32_t flash_size;        // ä¿å­˜ flash å¤§å°ï¼ˆå­—èŠ‚ï¼‰
-    esp_chip_info(&chip_info);  // è¯»å–èŠ¯ç‰‡ä¿¡æ¯åˆ°ç»“æ„ä½“
+    init_nvs();          // È·±£ NVS ¿ÉÓÃ
+    wifi_init_softap();  // ¿ªÆô SoftAP
+
+    /* ´òÓ¡Ğ¾Æ¬ĞÅÏ¢ */
+    esp_chip_info_t chip_info; // ±£´æĞ¾Æ¬ÌØĞÔ
+    uint32_t flash_size;       // ±£´æ flash ´óĞ¡£¨×Ö½Ú£©
+    esp_chip_info(&chip_info); // ¶ÁÈ¡Ğ¾Æ¬ĞÅÏ¢µ½½á¹¹Ìå
     printf("This is %s chip with %d CPU core(s), %s%s%s%s, ",
            CONFIG_IDF_TARGET,
            chip_info.cores,
@@ -29,24 +96,23 @@ void app_main(void)
            (chip_info.features & CHIP_FEATURE_BLE) ? "BLE" : "",
            (chip_info.features & CHIP_FEATURE_IEEE802154) ? ", 802.15.4 (Zigbee/Thread)" : "");
 
-    unsigned major_rev = chip_info.revision / 100;  // ä¸»ç‰ˆæœ¬å·ï¼ˆé«˜ä¸¤ä½ï¼‰
-    unsigned minor_rev = chip_info.revision % 100;  // æ¬¡ç‰ˆæœ¬å·ï¼ˆä½ä¸¤ä½ï¼‰
+    unsigned major_rev = chip_info.revision / 100; // Ö÷°æ±¾ºÅ£¨¸ßÁ½Î»£©
+    unsigned minor_rev = chip_info.revision % 100; // ´Î°æ±¾ºÅ£¨µÍÁ½Î»£©
     printf("silicon revision v%d.%d, ", major_rev, minor_rev);
-    if(esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-        printf("Get flash size failed");  // è¯»å– flash å¤§å°å¤±è´¥æ—¶ç›´æ¥è¿”å›
+    if (esp_flash_get_size(NULL, &flash_size) != ESP_OK)
+    {
+        printf("Get flash size failed"); // ¶ÁÈ¡ flash ´óĞ¡Ê§°ÜÊ±Ö±½Ó·µ»Ø
         return;
     }
 
     printf("%" PRIu32 "MB %s flash\n", flash_size / (uint32_t)(1024 * 1024),
            (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
-    printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size());  // è¾“å‡ºå†å²æœ€å°ç©ºé—²å †
+    printf("Minimum free heap size: %" PRIu32 " bytes\n", esp_get_minimum_free_heap_size()); // Êä³öÀúÊ·×îĞ¡¿ÕÏĞ¶Ñ
 
-    for (int i = 10; i >= 0; i--) {  // å€’è®¡æ—¶ 10 ç§’åé‡å¯
-        printf("Restarting in %d seconds...\n", i);
-        vTaskDelay(1000 / portTICK_PERIOD_MS);  // å»¶æ—¶ 1 ç§’ï¼ˆFreeRTOS èŠ‚æ‹ï¼‰
+    // SoftAP ÔËĞĞºó±£³ÖÈÎÎñ´æ»î£¬±ÜÃâÊ¾Àı×Ô¶¯ÖØÆô
+    while (true)
+    {
+        vTaskDelay(pdMS_TO_TICKS(10000));
     }
-    printf("Restarting now.\n");
-    fflush(stdout);
-    esp_restart();  // è§¦å‘è½¯ä»¶é‡å¯
 }

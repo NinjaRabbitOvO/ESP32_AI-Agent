@@ -1,3 +1,7 @@
-idf_component_register(SRCS "hello_world_main.c"   # ç»„ä»¶æºæ–‡ä»¶
-                       PRIV_REQUIRES spi_flash     # ä»…å†…éƒ¨ä¾èµ– spi_flash ç»„ä»¶
-                       INCLUDE_DIRS "")            # æš´éœ²çš„å¤´æ–‡ä»¶ç›®å½•ï¼ˆæ­¤å¤„ä¸ºç©ºï¼‰
+idf_component_register(
+    SRCS "hello_world_main.c"           # ×é¼şÔ´ÎÄ¼ş
+    PRIV_REQUIRES spi_flash esp_wifi     # ÄÚ²¿ÒÀÀµ£ºflash Óë Wi-Fi
+                 esp_event esp_netif     # ÊÂ¼şÑ­»·ÓëÍøÂç½Ó¿Ú
+                 nvs_flash               # NVS ³õÊ¼»¯
+    INCLUDE_DIRS ""                     # ±©Â¶µÄÍ·ÎÄ¼şÄ¿Â¼£¨´Ë´¦Îª¿Õ£©
+)
