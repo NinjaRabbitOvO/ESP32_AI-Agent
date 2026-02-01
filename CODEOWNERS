@@ -1,0 +1,6 @@
+# 所有文件默认由仓库所有者负责评审
+* @NinjaRabbitOvO
+
+# CI / DevContainer 配置可选由同一人维护
+.github/ @NinjaRabbitOvO
+.devcontainer/ @NinjaRabbitOvO
